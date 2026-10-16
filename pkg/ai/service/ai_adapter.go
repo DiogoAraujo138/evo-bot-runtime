@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/EvolutionAPI/evo-bot-runtime/internal/empresa"
 	brtErrors "github.com/EvolutionAPI/evo-bot-runtime/internal/errors"
 	"github.com/EvolutionAPI/evo-bot-runtime/pkg/ai/model"
 )
@@ -223,6 +224,9 @@ func (a *aiAdapter) doOnce(
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("X-API-Key", req.ApiKey)
+	if id := empresa.From(ctx); id != "" { // multi-empresa: a chave do agente só existe dentro da empresa
+		httpReq.Header.Set(empresa.Header, id)
+	}
 
 	resp, err := a.client.Do(httpReq)
 	if err != nil {

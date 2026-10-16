@@ -34,6 +34,7 @@ type PipelineState struct {
 	AgentBotID  string         `json:"agent_bot_id,omitempty"`
 	ApiKey      string         `json:"api_key,omitempty"`
 	OutgoingURL string         `json:"outgoing_url,omitempty"`
+	EmpresaID   string         `json:"empresa_id,omitempty"` // multi-empresa: sobrevive a reinício
 	Metadata    map[string]any `json:"metadata,omitempty"`
 }
 
@@ -50,6 +51,7 @@ type MessageEvent struct {
 	OutgoingURL    string         `json:"outgoing_url"`
 	BotConfig      BotConfig      `json:"bot_config"`
 	PostbackURL    string         `json:"postback_url"`
+	EmpresaID      string         `json:"empresa_id,omitempty"` // multi-empresa (Chordata); vazio no Evo comunitário
 	Metadata       map[string]any `json:"metadata,omitempty"`
 }
 

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/EvolutionAPI/evo-bot-runtime/internal/empresa"
 	brtErrors "github.com/EvolutionAPI/evo-bot-runtime/internal/errors"
 	aiModel "github.com/EvolutionAPI/evo-bot-runtime/pkg/ai/model"
 	aiIface "github.com/EvolutionAPI/evo-bot-runtime/pkg/ai/service"
@@ -90,7 +91,7 @@ func (s *pipelineService) Start() error {
 		// for pairs that received a Process call concurrently with Start recovery).
 		key := pairKey(pair.ContactID, pair.ConversationID)
 		if _, alreadyExists := s.entries.Load(key); !alreadyExists {
-			pipelineCtx, cancel := context.WithCancel(context.Background())
+			pipelineCtx, cancel := context.WithCancel(empresa.With(context.Background(), state.EmpresaID))
 			s.entries.Store(key, pipelineEntry{
 				ctx:         pipelineCtx,
 				cancel:      cancel,
@@ -158,7 +159,7 @@ func (s *pipelineService) Process(ctx context.Context, event *model.MessageEvent
 }
 
 func (s *pipelineService) startDebounce(ctx context.Context, event *model.MessageEvent) error {
-	pipelineCtx, cancel := context.WithCancel(context.Background())
+	pipelineCtx, cancel := context.WithCancel(empresa.With(context.Background(), event.EmpresaID))
 	key := pairKey(event.ContactID, event.ConversationID)
 	s.entries.Store(key, pipelineEntry{
 		ctx:         pipelineCtx,
@@ -185,6 +186,7 @@ func (s *pipelineService) startDebounce(ctx context.Context, event *model.Messag
 		PostbackURL: event.PostbackURL,
 		OutgoingURL: event.OutgoingURL,
 		ApiKey:      event.ApiKey,
+		EmpresaID:   event.EmpresaID,
 		Metadata:    event.Metadata,
 	}
 	if err := s.repo.SetState(ctx, event.ContactID, event.ConversationID, newState); err != nil {
@@ -203,7 +205,7 @@ func (s *pipelineService) startDebounce(ctx context.Context, event *model.Messag
 
 // skipDebounce handles DebounceTime == 0: appends to buffer, advances directly to StageAI (FR-09).
 func (s *pipelineService) skipDebounce(ctx context.Context, event *model.MessageEvent) error {
-	pipelineCtx, cancel := context.WithCancel(context.Background())
+	pipelineCtx, cancel := context.WithCancel(empresa.With(context.Background(), event.EmpresaID))
 	key := pairKey(event.ContactID, event.ConversationID)
 	s.entries.Store(key, pipelineEntry{
 		ctx:         pipelineCtx,

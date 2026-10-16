@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/EvolutionAPI/evo-bot-runtime/internal/empresa"
 	brtErrors "github.com/EvolutionAPI/evo-bot-runtime/internal/errors"
 	"github.com/EvolutionAPI/evo-bot-runtime/pkg/pipeline/model"
 )
@@ -169,6 +170,9 @@ func (d *dispatchEngineImpl) sendPart(ctx context.Context, postbackURL, content 
 	req.Header.Set("Content-Type", "application/json")
 	if d.secret != "" {
 		req.Header.Set("X-Bot-Runtime-Secret", d.secret)
+	}
+	if id := empresa.From(ctx); id != "" { // multi-empresa: o CRM exige a empresa neste retorno
+		req.Header.Set(empresa.Header, id)
 	}
 
 	resp, err := d.client.Do(req)
