@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/EvolutionAPI/evo-bot-runtime/internal/empresa"
 	brtErrors "github.com/EvolutionAPI/evo-bot-runtime/internal/errors"
 	"github.com/EvolutionAPI/evo-bot-runtime/pkg/pipeline/model"
 )
@@ -206,5 +207,24 @@ func TestAIFailureNotice_DefaultIsLocaleNeutralEnglish(t *testing.T) {
 		if strings.Contains(defaultAIFailureNotice, ptBR) {
 			t.Errorf("default notice still hardcodes pt-BR (%q): %q", ptBR, defaultAIFailureNotice)
 		}
+	}
+}
+
+// Multi-empresa: o contexto do aviso e novo (o do turno ja expirou). Sem levar a empresa, o CRM recusa o retorno com 400
+// (falta X-Evo-Tenant-Id) e o cliente fica sem o aviso. Achado no teste de carga.
+func TestAIFailureNotice_CarriesTheCompany(t *testing.T) {
+	var got string
+	engine := &mockDispatchEngine{
+		dispatchFn: func(ctx context.Context, _, _ int64, _ string, _ model.BotConfig, _ string) error {
+			got = empresa.From(ctx)
+			return nil
+		},
+	}
+	svc, _ := setupSvcWithAIAndDispatch(t, &mockAIAdapter{}, engine)
+
+	svc.sendAIFailureNoticeFor("empresa-123", 1, 2, model.BotConfig{}, "http://crm.test/postback/2", brtErrors.ErrAITimeout)
+
+	if got != "empresa-123" {
+		t.Fatalf("the notice dispatch lost the company: got %q", got)
 	}
 }

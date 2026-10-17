@@ -421,7 +421,7 @@ func (s *pipelineService) runAIStage(ctx context.Context, contactID, conversatio
 			// CRM-236: silence is indistinguishable from "the bot is ignoring you",
 			// and the tool's side effect may already be applied (the card moved at
 			// ~20s, the timeout fired at 30s). Tell the customer something.
-			s.sendAIFailureNotice(contactID, conversationID, cfg, postbackURL, err)
+			s.sendAIFailureNoticeFor(empresa.From(ctx), contactID, conversationID, cfg, postbackURL, err)
 		default:
 			slog.Error("pipeline.ai.error",
 				"contact_id", contactID,
@@ -668,6 +668,18 @@ func (s *pipelineService) sendAIFailureNotice(
 	postbackURL string,
 	cause error,
 ) {
+	s.sendAIFailureNoticeFor("", contactID, conversationID, cfg, postbackURL, cause)
+}
+
+// sendAIFailureNoticeFor e o aviso com a empresa do turno: o contexto do aviso e novo (o do turno ja expirou), entao a
+// empresa precisa ser levada a mao, senao o CRM multiempresa recusa o retorno (400, sem X-Evo-Tenant-Id).
+func (s *pipelineService) sendAIFailureNoticeFor(
+	empresaID string,
+	contactID, conversationID int64,
+	cfg model.BotConfig,
+	postbackURL string,
+	cause error,
+) {
 	notice := defaultAIFailureNotice
 	if v, ok := os.LookupEnv(aiFailureNoticeEnv); ok {
 		if strings.TrimSpace(v) == "" {
@@ -698,6 +710,7 @@ func (s *pipelineService) sendAIFailureNotice(
 	// would orphan a follow-up turn. Both callers already cleared the state.
 	ctx, cancel := noticeCtx()
 	defer cancel()
+	ctx = empresa.With(ctx, empresaID)
 	defer s.recoverPipeline(contactID, conversationID)
 
 	if err := s.dispatchEng.Dispatch(ctx, contactID, conversationID, notice, cfg, postbackURL); err != nil {
